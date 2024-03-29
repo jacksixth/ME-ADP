@@ -2,7 +2,7 @@
  * @Author: ym + xcy
  * @Date: 2024-01-23 10:10
  * @LastEditors: xcy
- * @LastEditTime: 2024-03-28 14:09
+ * @LastEditTime: 2024-03-29 13:01
  * @Description: 自动化部署前端文件至服务器
  */
 
@@ -44,14 +44,23 @@ function selectServerInfo() {
       zipFileName = serverInfo[index - 1].zipFileName
       fileName = serverInfo[index - 1].fileName
       console.log('当前连接的服务器IP是：' + server.host);
-      // 连接测试↓
-      // testContent()
-      main()
+      selectWhatToDo()
     }
-    rl.close();
   });
 }
 
+function selectWhatToDo() {
+  console.log("[1] 部署");
+  console.log("[2] 连接与unzip命令测试");
+  rl.question('选择需要做什么?（直接回车将直接部署） ', async (index) => {
+    if (index == 2) {
+      // 连接测试↓
+      testContent()
+    } else {
+      await main()
+    }
+  });
+}
 
 async function main() {
   const hasFile = await checkFile()
