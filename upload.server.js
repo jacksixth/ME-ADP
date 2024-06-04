@@ -2,7 +2,7 @@
  * @Author: ym + xcy
  * @Date: 2024-01-23 10:10
  * @LastEditors: xcy
- * @LastEditTime: 2024-03-29 13:01
+ * @LastEditTime: 2024-06-04 21:34
  * @Description: 自动化部署前端文件至服务器
  */
 
@@ -44,20 +44,7 @@ function selectServerInfo() {
       zipFileName = serverInfo[index - 1].zipFileName
       fileName = serverInfo[index - 1].fileName
       console.log('当前连接的服务器IP是：' + server.host);
-      selectWhatToDo()
-    }
-  });
-}
-
-function selectWhatToDo() {
-  console.log("[1] 部署");
-  console.log("[2] 连接与unzip命令测试");
-  rl.question('选择需要做什么?（直接回车将直接部署） ', async (index) => {
-    if (index == 2) {
-      // 连接测试↓
-      testContent()
-    } else {
-      await main()
+      main()
     }
   });
 }
@@ -105,9 +92,10 @@ function checkZipFile() {
     checkPath2.start()
     fs.access(zipFileName, fs.constants.F_OK, (err) => {
       if (err) {
-        checkPath2.fail(
-          "不存在" + zipFileName + "压缩包，请将压缩包放在项目根目录！"
+        checkPath2.info(
+          "不存在" + zipFileName + "压缩包，即将开始压缩dist文件夹为dist.zip并上传！"
         )
+        checkPath2.clear()
         resolve(false)
       } else {
         checkPath2.succeed("存在压缩包")
@@ -159,7 +147,22 @@ function uploadFile() {
 
 function deploy(sshClient) {
   return new Promise((resolve) => {
-    deploySpinner.text = "文件上传成功！正在执行部署命令......"
+    deploySpinner.text = "文件上传成功！"
+    const testUnzip = ora("测试是否有unzip命令")
+    testUnzip.start()
+    sshClient.exec("unzip -v", (err, stream) => {
+      if (err) throw err;
+      stream.on('close', (code, signal) => {
+      }).on('data', (data) => {
+        testUnzip.succeed("服务器有unzip命令，开始部署!")
+        testUnzip.stop()
+      }).stderr.on('data', (data) => {
+        if (data.indexOf('unzip: command not found')) {
+          testUnzip.fail("服务器没有unzip命令，请安装unzip命令！")
+          process.exit(1)
+        }
+      });
+    })
     sshClient.shell((err, stream) => {
       stream
         // 执行命令，删除上一个备份，对当前的备份，解压最新代码
@@ -202,36 +205,4 @@ function deleteDir(url) {
   } else {
     console.log("给定的路径不存在！")
   }
-}
-//连接测试
-function testContent() {
-  const testContentOra = ora("连接开始")
-  testContentOra.start()
-  sshClient
-    .on("ready", () => {
-      testContentOra.succeed("服务器连接成功！")
-      const testUnzip = ora("测试是否有unzip命令")
-      testUnzip.start()
-      sshClient.shell((err, stream) => {
-        stream// 执行命令
-          .end(
-            `
-            unzip -v
-            exit
-            `
-          )
-          .on("data", (data) => {
-            console.log(data.toString());
-          })
-          .on("close", () => {
-            sshClient.end()
-            testUnzip.succeed(`命令发送完成，请查看是否存在command not found: unzip。若出现则服务器未安装unzip，请自行安装。`)
-          })
-      })
-
-    })
-    .on("error", () => {
-      testContentOra.fail("服务器连接失败，请检查服务器配置参数是否正确！")
-    })
-    .connect(server)
 }
