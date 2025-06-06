@@ -1,8 +1,8 @@
 /*
  * @Author: ym + xcy
  * @Date: 2024-01-23 10:10
- * @LastEditors: xcy
- * @LastEditTime: 2024-06-04 21:34
+ * @LastEditors: jack
+ * @LastEditTime: 2025-06-06 09:37
  * @Description: 自动化部署前端文件至服务器
  */
 
@@ -23,17 +23,36 @@ const pkg = ora("正在对文件进行压缩")
 const deploySpinner = ora("部署开始")
 let sshClient = new ssh.Client()
 let start = new Date()
-
-selectServerInfo()
-
-
+var args = process.argv.splice(2)
+if (args.length == 1) {
+  // 如果命令行参数有传入服务器信息，则直接使用
+  const index = parseInt(args[0]) - 1
+  if (index >= 0 && index < serverInfo.length) {
+    server = serverInfo[index].server
+    uploadPath = serverInfo[index].uploadPath
+    zipSource = serverInfo[index].zipSource
+    zipFileName = serverInfo[index].zipFileName
+    fileName = serverInfo[index].fileName
+    console.log('当前连接的服务器IP是：' + server.host);
+    main()
+  } else {
+    console.error("无效的服务器索引，请重新选择！");
+    process.exit(1);
+  }
+} else if (args.length > 1) {
+  console.error("参数错误，请只输入一个服务器索引！");
+  process.exit(1);
+} else {
+  // 如果没有传入参数，则选择服务器
+  selectServerInfo()
+}
 function selectServerInfo() {
   const serverList = serverInfo.map(server => server.name)
   serverList.forEach((item, index) => {
     console.log(`[${index + 1}] ${item}`);
-  })
+  });
   console.log(`[0] 退出`);
-  rl.question('需要部署到哪一台服务器?（输入0或直接回车退出） ', (index) => {
+  rl.question('需要部署到哪一台服务器?（输入0或直接ctrl+c退出） ', (index) => {
     if (index && index == 0) {
       rl.close();
     }
@@ -51,7 +70,7 @@ function selectServerInfo() {
 
 async function main() {
   const hasFile = await checkFile()
-  const hasZip = await checkZipFile()
+  const hasZip = await checkZipFile(hasFile)
   //存在压缩包就会直接用压缩包 - 有些项目有加build完自动压缩
   if (hasZip) {
     deploySpinner.start()
@@ -87,14 +106,19 @@ function checkFile() {
   })
 }
 
-function checkZipFile() {
+function checkZipFile(hasFile = false) {
   return new Promise((resolve) => {
     checkPath2.start()
     fs.access(zipFileName, fs.constants.F_OK, (err) => {
       if (err) {
-        checkPath2.info(
-          "不存在" + zipFileName + "压缩包，即将开始压缩dist文件夹为dist.zip并上传！"
+        checkPath2.fail(
+          "不存在" + zipFileName + "压缩包，"
         )
+        if (hasFile) {
+          checkPath2.succeed("存在" + zipSource + "即将开始压缩并上传！")
+        } else {
+          checkPath2.fail("无法进行部署")
+        }
         checkPath2.clear()
         resolve(false)
       } else {
