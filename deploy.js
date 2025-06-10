@@ -44,7 +44,6 @@ async function loadServerInfo() {
     const serverInfoModule = await import('./serverInfo.js');
     serverInfo = serverInfoModule.default; // 假设导出的是默认导出
   } catch (error) {
-    console.log(error);
     console.error("加载 serverInfo.js 失败,正在使用默认配置创建serverInfo.js,请填写配置后重新运行");
     fs.writeFileSync('./serverInfo.js', def)
     process.exit(1);
