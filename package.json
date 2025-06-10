@@ -1,19 +1,26 @@
 {
-  "name": "build",
+  "name": "deploy",
   "version": "1.0.0",
   "description": "将前端文件部署到服务器",
-  "main": "upload.server.js",
+  "main": "deploy.js",
   "scripts": {
-    "start": "node upload.server.js"
+    "start": "node deploy.js",
+    "build": "rollup -c "
   },
-  "type": "module",
   "author": "",
   "license": "ISC",
+  "type": "module",
   "dependencies": {
     "compressing": "^1.10.0",
     "fs": "^0.0.1-security",
     "ora": "^8.0.1",
     "readline": "^1.3.0",
     "ssh2": "^1.15.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "rollup": "^4.42.0"
   }
 }

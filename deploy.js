@@ -1,8 +1,8 @@
 /*
- * @Author: ym + xcy
+ * @Author: jack
  * @Date: 2024-01-23 10:10
  * @LastEditors: jack
- * @LastEditTime: 2025-06-06 09:37
+ * @LastEditTime: 2025-06-10 13:49
  * @Description: 自动化部署前端文件至服务器
  */
 
@@ -11,7 +11,46 @@ import compress from "compressing"
 import ora from "ora"
 import * as fs from "fs"
 import readLine from 'readline'
-import serverInfo from "./serverInfo.js"
+import path from "path"
+const def = `/**
+ * 最终会在服务器端形成这样的结构
+ * uploadPath/                                       这里是·uploadPath·
+ * |    |-- fileName/                                 这里是·fileName· 底下是解压出来的文件
+ * |    |     |--js                             
+ * |    |     |--img
+ * |    |     |--index.html
+ * |    |     |--favicon.ico
+ */
+export default [
+  {
+    name: '',//服务器名   用于区分多个服务器
+    server: {
+      host: '', // 服务器 host 
+      port: 22, // 服务器 port
+      username: '', // 服务器用户名
+      password: '', // 服务器密码
+    },
+    uploadPath: '/usr/share/nginx/html',//服务器部署路径
+    zipSource: './dist',//  打包源文件  放在根目录的有zipSource文件夹会默认打包
+    zipFileName: 'dist.zip', //  打包后名称 放在根目录的有zipFileName文件夹直接上传
+    fileName: '',//部署上去的文件夹名 --- nginx配置里的root读取的文件夹
+  },
+];`;
+
+//serverInfo 动态导入 并在找不到时使用serverInfo.js.default的内容创建
+let serverInfo = null
+async function loadServerInfo() {
+  try {
+    const serverInfoModule = await import('./serverInfo.js');
+    serverInfo = serverInfoModule.default; // 假设导出的是默认导出
+  } catch (error) {
+    console.log(error);
+    console.error("加载 serverInfo.js 失败,正在使用默认配置创建serverInfo.js,请填写配置后重新运行");
+    fs.writeFileSync('./serverInfo.js', def)
+    process.exit(1);
+  }
+}
+
 let rl = readLine.createInterface({
   input: process.stdin,
   output: process.stdout,
@@ -24,27 +63,30 @@ const deploySpinner = ora("部署开始")
 let sshClient = new ssh.Client()
 let start = new Date()
 var args = process.argv.splice(2)
-if (args.length == 1) {
-  // 如果命令行参数有传入服务器信息，则直接使用
-  const index = parseInt(args[0]) - 1
-  if (index >= 0 && index < serverInfo.length) {
-    server = serverInfo[index].server
-    uploadPath = serverInfo[index].uploadPath
-    zipSource = serverInfo[index].zipSource
-    zipFileName = serverInfo[index].zipFileName
-    fileName = serverInfo[index].fileName
-    console.log('当前连接的服务器IP是：' + server.host);
-    main()
-  } else {
-    console.error("无效的服务器索引，请重新选择！");
+const init = async () => {
+  await loadServerInfo()
+  if (args.length == 1) {
+    // 如果命令行参数有传入服务器信息，则直接使用
+    const index = parseInt(args[0]) - 1
+    if (index >= 0 && index < serverInfo.length) {
+      server = serverInfo[index].server
+      uploadPath = serverInfo[index].uploadPath
+      zipSource = serverInfo[index].zipSource
+      zipFileName = serverInfo[index].zipFileName
+      fileName = serverInfo[index].fileName
+      console.log('当前连接的服务器IP是：' + server.host);
+      main()
+    } else {
+      console.error("无效的服务器索引，请重新选择！");
+      process.exit(1);
+    }
+  } else if (args.length > 1) {
+    console.error("参数错误，请只输入一个服务器索引！");
     process.exit(1);
+  } else {
+    // 如果没有传入参数，则选择服务器
+    selectServerInfo()
   }
-} else if (args.length > 1) {
-  console.error("参数错误，请只输入一个服务器索引！");
-  process.exit(1);
-} else {
-  // 如果没有传入参数，则选择服务器
-  selectServerInfo()
 }
 function selectServerInfo() {
   const serverList = serverInfo.map(server => server.name)
@@ -57,6 +99,11 @@ function selectServerInfo() {
       rl.close();
     }
     else if (index) {
+      if (index > serverList.length || index < 0) {
+        console.log('输入错误,请重新输入');
+        selectServerInfo()
+        return
+      }
       server = serverInfo[index - 1].server
       uploadPath = serverInfo[index - 1].uploadPath
       zipSource = serverInfo[index - 1].zipSource
@@ -230,3 +277,5 @@ function deleteDir(url) {
     console.log("给定的路径不存在！")
   }
 }
+
+init()
