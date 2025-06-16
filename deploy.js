@@ -31,9 +31,10 @@ export default [
       password: '', // 服务器密码
     },
     uploadPath: '/usr/share/nginx/html',//服务器部署路径
-    zipSource: './dist',//  打包源文件  放在根目录的有zipSource文件夹会默认打包
-    zipFileName: 'dist.zip', //  打包后名称 放在根目录的有zipFileName文件夹直接上传
+    zipSource: './dist',//  打包源文件  放在根目录的有zipSource文件夹会默认打包 仅有文件夹没有压缩包才压缩文件夹
+    zipFileName: 'dist.zip', //  打包后名称 放在根目录的有zipFileName文件夹直接上传 存在压缩包就会直接用压缩包
     fileName: '',//部署上去的文件夹名 --- nginx配置里的root读取的文件夹
+    delFile: true, //部署完成后是否删除文件
   },
 ];`;
 
@@ -54,7 +55,7 @@ let rl = readLine.createInterface({
   input: process.stdin,
   output: process.stdout,
 })
-let server, uploadPath, zipSource, zipFileName, fileName //服务器信息
+let server, uploadPath, zipSource, zipFileName, fileName, delFile//服务器信息
 const checkPath1 = ora(`正在检查是否存在${zipSource}文件夹`)
 const checkPath2 = ora(`正在检查是否存在${zipFileName}压缩包`)
 const pkg = ora("正在对文件进行压缩")
@@ -73,6 +74,7 @@ const init = async () => {
       zipSource = serverInfo[index].zipSource
       zipFileName = serverInfo[index].zipFileName
       fileName = serverInfo[index].fileName
+      delFile = serverInfo[index].delFile
       console.log('当前连接的服务器IP是：' + server.host);
       main()
     } else {
@@ -131,10 +133,10 @@ async function main() {
     }
   }
 
-  if (hasFile) {
+  if (hasFile && delFile) {
     deleteDir(zipSource)
   }
-  if (hasFile || hasZip) fs.unlinkSync(zipFileName)
+  if ((hasFile || hasZip) && delFile) fs.unlinkSync(zipFileName)
 }
 
 function checkFile() {

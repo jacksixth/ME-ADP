@@ -1,7 +1,9 @@
 // rollup.config.js
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
-import json from '@rollup/plugin-json';
+import typescript from '@rollup/plugin-typescript';
+import { terser } from 'rollup-plugin-terser';
+import replace from '@rollup/plugin-replace';
 
 export default {
   input: 'deploy.js',
@@ -12,11 +14,19 @@ export default {
     sourcemap: false,
   },
   plugins: [
+    replace({
+      preventAssignment: true,
+      values: {
+        __CLIENT__: typeof window !== 'undefined',
+        __SERVER__: typeof window === 'undefined',
+      },
+    }),
     nodeResolve({
       preferBuiltins: true, // 明确使用内置模块，消除 readline 警告
     }),
     commonjs(),
-    json(), // 支持导入 JSON 文件
+    typescript({ tsconfig: './tsconfig.json' }),
+    terser(), // 可选：压缩代码
   ],
   external: [
     './serverInfo.js',
