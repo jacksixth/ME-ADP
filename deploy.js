@@ -2,7 +2,7 @@
  * @Author: jack
  * @Date: 2024-01-23 10:10
  * @LastEditors: jack
- * @LastEditTime: 2025-06-10 13:49
+ * @LastEditTime: 2025-06-16 15:45
  * @Description: 自动化部署前端文件至服务器
  */
 
@@ -11,7 +11,6 @@ import compress from "compressing"
 import ora from "ora"
 import * as fs from "fs"
 import readLine from 'readline'
-import path from "path"
 const def = `/**
  * 最终会在服务器端形成这样的结构
  * uploadPath/                                       这里是·uploadPath·

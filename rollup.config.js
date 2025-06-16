@@ -25,7 +25,6 @@ export default {
       preferBuiltins: true, // 明确使用内置模块，消除 readline 警告
     }),
     commonjs(),
-    typescript({ tsconfig: './tsconfig.json' }),
     terser(), // 可选：压缩代码
   ],
   external: [
