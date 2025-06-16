@@ -2,15 +2,16 @@
  * @Author: jack
  * @Date: 2024-01-23 10:10
  * @LastEditors: jack
- * @LastEditTime: 2025-06-16 16:09
+ * @LastEditTime: 2025-06-16 17:25
  * @Description: 自动化部署前端文件至服务器
  */
 
-import ssh from "ssh2"
-import compress from "compressing"
+import * as ssh from "ssh2"
+import * as compress from "compressing"
 import ora from "ora"
 import * as fs from "fs"
-import readLine from "readline"
+import * as readLine from "readline"
+
 const def = `/**
  * 最终会在服务器端形成这样的结构
  * uploadPath/                                       这里是·uploadPath·
@@ -20,7 +21,7 @@ const def = `/**
  * |    |     |--index.html
  * |    |     |--favicon.ico
  */
-export default [
+module.exports = [
   {
     name: '',//服务器名   用于区分多个服务器
     server: {
@@ -56,8 +57,7 @@ interface ServerConfig {
 let serverInfo: ServerConfig[] | null = null
 async function loadServerInfo() {
   try {
-    const serverInfoModule = await import("./serverInfo.js")
-    serverInfo = serverInfoModule.default // 假设导出的是默认导出
+    serverInfo = require("./serverInfo.js")
   } catch (error) {
     console.error(
       "加载 serverInfo.js 失败,正在使用默认配置创建serverInfo.js,请填写配置后重新运行"
@@ -234,7 +234,7 @@ function uploadFile() {
             zipFileName, // 本地文件路径
             `${uploadPath}/${zipFileName}`, // 上传到目标服务器的路径
             {},
-            (err, result) => {
+            (_err) => {
               resolve(deploy(sshClient))
             }
           )

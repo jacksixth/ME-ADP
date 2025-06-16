@@ -5,11 +5,10 @@
   "main": "deploy.js",
   "scripts": {
     "start": "node deploy.js",
-    "build": "tsup"
+    "build": "tsc deploy.ts --outDir dist_tmp && ncc build dist_tmp/deploy.js -o out "
   },
   "author": "",
   "license": "ISC",
-  "type": "module",
   "dependencies": {
     "compressing": "^1.10.0",
     "fs": "^0.0.1-security",
@@ -19,7 +18,8 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.1",
-    "tsup": "^8.5.0",
+    "@types/ssh2": "^1.15.5",
+    "@vercel/ncc": "^0.38.3",
     "typescript": "^5.8.3"
   }
 }

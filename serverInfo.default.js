@@ -7,7 +7,7 @@
  * |    |     |--index.html
  * |    |     |--favicon.ico
  */
-export default [
+module.exports =[
   {
     name: '',//服务器名   用于区分多个服务器
     server: {

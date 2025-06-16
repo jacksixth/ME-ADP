@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "module": "nodenext", // 或保持 "CommonJS"
+    "module": "CommonJS", // 或保持 "CommonJS"
     "target": "ES2017"
   }
 }
