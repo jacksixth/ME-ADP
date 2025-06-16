@@ -2,7 +2,7 @@
  * @Author: jack
  * @Date: 2024-01-23 10:10
  * @LastEditors: jack
- * @LastEditTime: 2025-06-16 15:45
+ * @LastEditTime: 2025-06-16 16:09
  * @Description: 自动化部署前端文件至服务器
  */
 
@@ -10,7 +10,7 @@ import ssh from "ssh2"
 import compress from "compressing"
 import ora from "ora"
 import * as fs from "fs"
-import readLine from 'readline'
+import readLine from "readline"
 const def = `/**
  * 最终会在服务器端形成这样的结构
  * uploadPath/                                       这里是·uploadPath·
@@ -35,18 +35,35 @@ export default [
     fileName: '',//部署上去的文件夹名 --- nginx配置里的root读取的文件夹
     delFile: true, //部署完成后是否删除文件
   },
-];`;
+];`
 
 //serverInfo 动态导入 并在找不到时使用serverInfo.js.default的内容创建
-let serverInfo = null
+interface ServerConfig {
+  name: string
+  server: {
+    host: string
+    port: number
+    username: string
+    password: string
+  }
+  uploadPath: string
+  zipSource: string
+  zipFileName: string
+  fileName: string
+  delFile: boolean
+}
+
+let serverInfo: ServerConfig[] | null = null
 async function loadServerInfo() {
   try {
-    const serverInfoModule = await import('./serverInfo.js');
-    serverInfo = serverInfoModule.default; // 假设导出的是默认导出
+    const serverInfoModule = await import("./serverInfo.js")
+    serverInfo = serverInfoModule.default // 假设导出的是默认导出
   } catch (error) {
-    console.error("加载 serverInfo.js 失败,正在使用默认配置创建serverInfo.js,请填写配置后重新运行");
-    fs.writeFileSync('./serverInfo.js', def)
-    process.exit(1);
+    console.error(
+      "加载 serverInfo.js 失败,正在使用默认配置创建serverInfo.js,请填写配置后重新运行"
+    )
+    fs.writeFileSync("./serverInfo.js", def)
+    process.exit(1)
   }
 }
 
@@ -54,19 +71,23 @@ let rl = readLine.createInterface({
   input: process.stdin,
   output: process.stdout,
 })
-let server, uploadPath, zipSource, zipFileName, fileName, delFile//服务器信息
+let server, uploadPath, zipSource, zipFileName, fileName, delFile //服务器信息
 const checkPath1 = ora(`正在检查是否存在${zipSource}文件夹`)
 const checkPath2 = ora(`正在检查是否存在${zipFileName}压缩包`)
 const pkg = ora("正在对文件进行压缩")
 const deploySpinner = ora("部署开始")
 let sshClient = new ssh.Client()
-let start = new Date()
+let start = new Date().getTime()
 var args = process.argv.splice(2)
 const init = async () => {
   await loadServerInfo()
   if (args.length == 1) {
     // 如果命令行参数有传入服务器信息，则直接使用
     const index = parseInt(args[0]) - 1
+    if (!serverInfo) {
+      console.error("服务器配置加载失败，无法继续部署！")
+      process.exit(1)
+    }
     if (index >= 0 && index < serverInfo.length) {
       server = serverInfo[index].server
       uploadPath = serverInfo[index].uploadPath
@@ -74,45 +95,53 @@ const init = async () => {
       zipFileName = serverInfo[index].zipFileName
       fileName = serverInfo[index].fileName
       delFile = serverInfo[index].delFile
-      console.log('当前连接的服务器IP是：' + server.host);
+      console.log("当前连接的服务器IP是：" + server.host)
       main()
     } else {
-      console.error("无效的服务器索引，请重新选择！");
-      process.exit(1);
+      console.error("无效的服务器索引，请重新选择！")
+      process.exit(1)
     }
   } else if (args.length > 1) {
-    console.error("参数错误，请只输入一个服务器索引！");
-    process.exit(1);
+    console.error("参数错误，请只输入一个服务器索引！")
+    process.exit(1)
   } else {
     // 如果没有传入参数，则选择服务器
     selectServerInfo()
   }
 }
 function selectServerInfo() {
-  const serverList = serverInfo.map(server => server.name)
+  if (!serverInfo) {
+    console.error("服务器配置加载失败，无法继续部署！")
+    process.exit(1)
+  }
+  const serverList = serverInfo.map((server) => server.name)
   serverList.forEach((item, index) => {
-    console.log(`[${index + 1}] ${item}`);
-  });
-  console.log(`[0] 退出`);
-  rl.question('需要部署到哪一台服务器?（输入0或直接ctrl+c退出） ', (index) => {
+    console.log(`[${index + 1}] ${item}`)
+  })
+  console.log(`[0] 退出`)
+  rl.question("需要部署到哪一台服务器?（输入0或直接ctrl+c退出） ", (input) => {
+    const index = parseInt(input)
     if (index && index == 0) {
-      rl.close();
-    }
-    else if (index) {
+      rl.close()
+    } else if (index) {
       if (index > serverList.length || index < 0) {
-        console.log('输入错误,请重新输入');
+        console.log("输入错误,请重新输入")
         selectServerInfo()
         return
+      }
+      if (!serverInfo) {
+        console.error("服务器配置加载失败，无法继续部署！")
+        process.exit(1)
       }
       server = serverInfo[index - 1].server
       uploadPath = serverInfo[index - 1].uploadPath
       zipSource = serverInfo[index - 1].zipSource
       zipFileName = serverInfo[index - 1].zipFileName
       fileName = serverInfo[index - 1].fileName
-      console.log('当前连接的服务器IP是：' + server.host);
+      console.log("当前连接的服务器IP是：" + server.host)
       main()
     }
-  });
+  })
 }
 
 async function main() {
@@ -138,7 +167,7 @@ async function main() {
   if ((hasFile || hasZip) && delFile) fs.unlinkSync(zipFileName)
 }
 
-function checkFile() {
+function checkFile(): Promise<boolean> {
   return new Promise((resolve) => {
     checkPath1.start()
     fs.access(zipSource, fs.constants.F_OK, (err) => {
@@ -158,9 +187,7 @@ function checkZipFile(hasFile = false) {
     checkPath2.start()
     fs.access(zipFileName, fs.constants.F_OK, (err) => {
       if (err) {
-        checkPath2.fail(
-          "不存在" + zipFileName + "压缩包，"
-        )
+        checkPath2.fail("不存在" + zipFileName + "压缩包，")
         if (hasFile) {
           checkPath2.succeed("存在" + zipSource + "即将开始压缩并上传！")
         } else {
@@ -222,17 +249,19 @@ function deploy(sshClient) {
     const testUnzip = ora("测试是否有unzip命令")
     testUnzip.start()
     sshClient.exec("unzip -v", (err, stream) => {
-      if (err) throw err;
-      stream.on('close', (code, signal) => {
-      }).on('data', (data) => {
-        testUnzip.succeed("服务器有unzip命令，开始部署!")
-        testUnzip.stop()
-      }).stderr.on('data', (data) => {
-        if (data.indexOf('unzip: command not found')) {
-          testUnzip.fail("服务器没有unzip命令，请安装unzip命令！")
-          process.exit(1)
-        }
-      });
+      if (err) throw err
+      stream
+        .on("close", (code, signal) => {})
+        .on("data", (data) => {
+          testUnzip.succeed("服务器有unzip命令，开始部署!")
+          testUnzip.stop()
+        })
+        .stderr.on("data", (data) => {
+          if (data.indexOf("unzip: command not found")) {
+            testUnzip.fail("服务器没有unzip命令，请安装unzip命令！")
+            process.exit(1)
+          }
+        })
     })
     sshClient.shell((err, stream) => {
       stream
@@ -247,10 +276,10 @@ function deploy(sshClient) {
           exit
           `
         )
-        .on("data", (data) => { })
+        .on("data", (data) => {})
         .on("close", () => {
           sshClient.end()
-          let end = new Date()
+          let end = new Date().getTime()
           deploySpinner.succeed(`部署完成，耗时${end - start}ms`)
           resolve(true)
         })
@@ -259,7 +288,7 @@ function deploy(sshClient) {
 }
 
 function deleteDir(url) {
-  var files = []
+  var files = [] as string[]
   if (fs.existsSync(url)) {
     //判断给定的路径是否存在
     files = fs.readdirSync(url) //返回文件和子目录的数组

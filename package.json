@@ -5,7 +5,7 @@
   "main": "deploy.js",
   "scripts": {
     "start": "node deploy.js",
-    "build": "rollup -c "
+    "build": "tsup"
   },
   "author": "",
   "license": "ISC",
@@ -18,9 +18,7 @@
     "ssh2": "^1.15.0"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^28.0.3",
-    "@rollup/plugin-json": "^6.1.0",
-    "@rollup/plugin-node-resolve": "^16.0.1",
-    "rollup": "^4.42.0"
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3"
   }
 }
