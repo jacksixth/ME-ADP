@@ -1,9 +1,6 @@
-var __create = Object.create;
+"use strict";
 var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -11,22 +8,6 @@ var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
 
 // serverInfo.js
 var serverInfo_exports = {};
@@ -66,11 +47,11 @@ var init_serverInfo = __esm({
 });
 
 // deploy.ts
-var import_ssh2 = __toESM(require("ssh2"), 1);
-var import_compressing = __toESM(require("compressing"), 1);
-var import_ora = __toESM(require("ora"), 1);
-var fs = __toESM(require("fs"), 1);
-var import_readline = __toESM(require("readline"), 1);
+import ssh from "ssh2";
+import compress from "compressing";
+import ora from "ora";
+import * as fs from "fs";
+import readLine from "readline";
 var def = `/**
  * \u6700\u7EC8\u4F1A\u5728\u670D\u52A1\u5668\u7AEF\u5F62\u6210\u8FD9\u6837\u7684\u7ED3\u6784
  * uploadPath/                                       \u8FD9\u91CC\u662F\xB7uploadPath\xB7
@@ -109,7 +90,7 @@ async function loadServerInfo() {
     process.exit(1);
   }
 }
-var rl = import_readline.default.createInterface({
+var rl = readLine.createInterface({
   input: process.stdin,
   output: process.stdout
 });
@@ -119,11 +100,11 @@ var zipSource;
 var zipFileName;
 var fileName;
 var delFile;
-var checkPath1 = (0, import_ora.default)(`\u6B63\u5728\u68C0\u67E5\u662F\u5426\u5B58\u5728${zipSource}\u6587\u4EF6\u5939`);
-var checkPath2 = (0, import_ora.default)(`\u6B63\u5728\u68C0\u67E5\u662F\u5426\u5B58\u5728${zipFileName}\u538B\u7F29\u5305`);
-var pkg = (0, import_ora.default)("\u6B63\u5728\u5BF9\u6587\u4EF6\u8FDB\u884C\u538B\u7F29");
-var deploySpinner = (0, import_ora.default)("\u90E8\u7F72\u5F00\u59CB");
-var sshClient = new import_ssh2.default.Client();
+var checkPath1 = ora(`\u6B63\u5728\u68C0\u67E5\u662F\u5426\u5B58\u5728${zipSource}\u6587\u4EF6\u5939`);
+var checkPath2 = ora(`\u6B63\u5728\u68C0\u67E5\u662F\u5426\u5B58\u5728${zipFileName}\u538B\u7F29\u5305`);
+var pkg = ora("\u6B63\u5728\u5BF9\u6587\u4EF6\u8FDB\u884C\u538B\u7F29");
+var deploySpinner = ora("\u90E8\u7F72\u5F00\u59CB");
+var sshClient = new ssh.Client();
 var start = (/* @__PURE__ */ new Date()).getTime();
 var args = process.argv.splice(2);
 var init = async () => {
@@ -164,29 +145,33 @@ function selectServerInfo() {
     console.log(`[${index + 1}] ${item}`);
   });
   console.log(`[0] \u9000\u51FA`);
-  rl.question("\u9700\u8981\u90E8\u7F72\u5230\u54EA\u4E00\u53F0\u670D\u52A1\u5668?\uFF08\u8F93\u51650\u6216\u76F4\u63A5ctrl+c\u9000\u51FA\uFF09 ", (input) => {
-    const index = parseInt(input);
-    if (index && index == 0) {
-      rl.close();
-    } else if (index) {
-      if (index > serverList.length || index < 0) {
-        console.log("\u8F93\u5165\u9519\u8BEF,\u8BF7\u91CD\u65B0\u8F93\u5165");
-        selectServerInfo();
-        return;
-      }
-      if (!serverInfo) {
-        console.error("\u670D\u52A1\u5668\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25\uFF0C\u65E0\u6CD5\u7EE7\u7EED\u90E8\u7F72\uFF01");
+  rl.question(
+    "\u9700\u8981\u90E8\u7F72\u5230\u54EA\u4E00\u53F0\u670D\u52A1\u5668?\uFF08\u8F93\u51650\u3001ctrl+c\u6216\u76F4\u63A5\u5173\u95ED\u9000\u51FA\uFF09 ",
+    (input) => {
+      const index = parseInt(input);
+      if (index) {
+        if (index > serverList.length || index < 0) {
+          console.log("\u8F93\u5165\u9519\u8BEF,\u8BF7\u91CD\u65B0\u8F93\u5165");
+          selectServerInfo();
+          return;
+        }
+        if (!serverInfo) {
+          console.error("\u670D\u52A1\u5668\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25\uFF0C\u65E0\u6CD5\u7EE7\u7EED\u90E8\u7F72\uFF01");
+          process.exit(1);
+        }
+        server = serverInfo[index - 1].server;
+        uploadPath = serverInfo[index - 1].uploadPath;
+        zipSource = serverInfo[index - 1].zipSource;
+        zipFileName = serverInfo[index - 1].zipFileName;
+        fileName = serverInfo[index - 1].fileName;
+        console.log("\u5F53\u524D\u8FDE\u63A5\u7684\u670D\u52A1\u5668IP\u662F\uFF1A" + server.host);
+        main();
+      } else {
+        rl.close();
         process.exit(1);
       }
-      server = serverInfo[index - 1].server;
-      uploadPath = serverInfo[index - 1].uploadPath;
-      zipSource = serverInfo[index - 1].zipSource;
-      zipFileName = serverInfo[index - 1].zipFileName;
-      fileName = serverInfo[index - 1].fileName;
-      console.log("\u5F53\u524D\u8FDE\u63A5\u7684\u670D\u52A1\u5668IP\u662F\uFF1A" + server.host);
-      main();
     }
-  });
+  );
 }
 async function main() {
   const hasFile = await checkFile();
@@ -244,7 +229,7 @@ function compressFiles() {
   return new Promise((resolve) => {
     pkg.start();
     const zipFile = (zipSource2, zipFileName2) => {
-      return import_compressing.default.zip.compressDir(zipSource2, zipFileName2, {
+      return compress.zip.compressDir(zipSource2, zipFileName2, {
         zipFileNameEncoding: "gbk",
         ignoreBase: true
         //压缩包内不需要再包一层
@@ -280,7 +265,7 @@ function uploadFile() {
 function deploy(sshClient2) {
   return new Promise((resolve) => {
     deploySpinner.text = "\u6587\u4EF6\u4E0A\u4F20\u6210\u529F\uFF01";
-    const testUnzip = (0, import_ora.default)("\u6D4B\u8BD5\u662F\u5426\u6709unzip\u547D\u4EE4");
+    const testUnzip = ora("\u6D4B\u8BD5\u662F\u5426\u6709unzip\u547D\u4EE4");
     testUnzip.start();
     sshClient2.exec("unzip -v", (err, stream) => {
       if (err) throw err;

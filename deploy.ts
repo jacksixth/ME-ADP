@@ -119,29 +119,33 @@ function selectServerInfo() {
     console.log(`[${index + 1}] ${item}`)
   })
   console.log(`[0] 退出`)
-  rl.question("需要部署到哪一台服务器?（输入0或直接ctrl+c退出） ", (input) => {
-    const index = parseInt(input)
-    if (index && index == 0) {
-      rl.close()
-    } else if (index) {
-      if (index > serverList.length || index < 0) {
-        console.log("输入错误,请重新输入")
-        selectServerInfo()
-        return
-      }
-      if (!serverInfo) {
-        console.error("服务器配置加载失败，无法继续部署！")
+  rl.question(
+    "需要部署到哪一台服务器?（输入0、ctrl+c或直接关闭退出） ",
+    (input) => {
+      const index = parseInt(input)
+      if (index) {
+        if (index > serverList.length || index < 0) {
+          console.log("输入错误,请重新输入")
+          selectServerInfo()
+          return
+        }
+        if (!serverInfo) {
+          console.error("服务器配置加载失败，无法继续部署！")
+          process.exit(1)
+        }
+        server = serverInfo[index - 1].server
+        uploadPath = serverInfo[index - 1].uploadPath
+        zipSource = serverInfo[index - 1].zipSource
+        zipFileName = serverInfo[index - 1].zipFileName
+        fileName = serverInfo[index - 1].fileName
+        console.log("当前连接的服务器IP是：" + server.host)
+        main()
+      } else {
+        rl.close()
         process.exit(1)
       }
-      server = serverInfo[index - 1].server
-      uploadPath = serverInfo[index - 1].uploadPath
-      zipSource = serverInfo[index - 1].zipSource
-      zipFileName = serverInfo[index - 1].zipFileName
-      fileName = serverInfo[index - 1].fileName
-      console.log("当前连接的服务器IP是：" + server.host)
-      main()
     }
-  })
+  )
 }
 
 async function main() {
