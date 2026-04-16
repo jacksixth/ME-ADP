@@ -1,8 +1,8 @@
 /*
  * @Author: jack
  * @Date: 2024-01-23 10:10
- * @LastEditors: jack
- * @LastEditTime: 2025-06-16 17:25
+ * @LastEditors: jacksixth
+ * @LastEditTime: 2026-04-16 19:42
  * @Description: 自动化部署前端文件至服务器
  */
 
@@ -71,11 +71,11 @@ let rl = readLine.createInterface({
   input: process.stdin,
   output: process.stdout,
 })
-let server, uploadPath, zipSource, zipFileName, fileName, delFile //服务器信息
-const checkPath1 = ora(`正在检查是否存在${zipSource}文件夹`)
-const checkPath2 = ora(`正在检查是否存在${zipFileName}压缩包`)
-const pkg = ora("正在对文件进行压缩")
-const deploySpinner = ora("部署开始")
+let server: ssh.ConnectConfig, uploadPath: string, zipSource: fs.PathLike, zipFileName: fs.PathLike, fileName: string, delFile: boolean //服务器信息
+let checkPath1: ReturnType<typeof ora>
+let checkPath2: ReturnType<typeof ora>
+let pkg: ReturnType<typeof ora>
+let deploySpinner: ReturnType<typeof ora>
 let sshClient = new ssh.Client()
 let start = new Date().getTime()
 var args = process.argv.splice(2)
@@ -95,6 +95,13 @@ const init = async () => {
       zipFileName = serverInfo[index].zipFileName
       fileName = serverInfo[index].fileName
       delFile = serverInfo[index].delFile
+      
+      // 初始化 spinner 实例
+      checkPath1 = ora(`正在检查是否存在${zipSource}文件夹`)
+      checkPath2 = ora(`正在检查是否存在${zipFileName}压缩包`)
+      pkg = ora("正在对文件进行压缩")
+      deploySpinner = ora("部署开始")
+      
       console.log("当前连接的服务器IP是：" + server.host)
       main()
     } else {
@@ -138,6 +145,14 @@ function selectServerInfo() {
         zipSource = serverInfo[index - 1].zipSource
         zipFileName = serverInfo[index - 1].zipFileName
         fileName = serverInfo[index - 1].fileName
+        delFile = serverInfo[index - 1].delFile
+        
+        // 初始化 spinner 实例
+        checkPath1 = ora(`正在检查是否存在${zipSource}文件夹`)
+        checkPath2 = ora(`正在检查是否存在${zipFileName}压缩包`)
+        pkg = ora("正在对文件进行压缩")
+        deploySpinner = ora("部署开始")
+        
         console.log("当前连接的服务器IP是：" + server.host)
         main()
       } else {
@@ -166,7 +181,7 @@ async function main() {
   }
 
   if (hasFile && delFile) {
-    deleteDir(zipSource)
+    deleteDir(zipSource.toString())
   }
   if ((hasFile || hasZip) && delFile) fs.unlinkSync(zipFileName)
 }
@@ -211,13 +226,13 @@ function compressFiles() {
   return new Promise((resolve) => {
     // 对文件进行压缩打包
     pkg.start()
-    const zipFile = (zipSource, zipFileName) => {
+    const zipFile = (zipSource: string, zipFileName: string) => {
       return compress.zip.compressDir(zipSource, zipFileName, {
         zipFileNameEncoding: "gbk",
         ignoreBase: true, //压缩包内不需要再包一层
       })
     }
-    zipFile(zipSource, zipFileName).then(async () => {
+    zipFile(zipSource.toString(), zipFileName.toString()).then(async () => {
       pkg.succeed("生成压缩文件成功")
       return resolve(true)
     })
@@ -231,7 +246,7 @@ function uploadFile() {
         deploySpinner.text = "服务器已连接,正在上传文件......"
         sshClient.sftp((err, sftp) => {
           sftp.fastPut(
-            zipFileName, // 本地文件路径
+            zipFileName.toString(), // 本地文件路径
             `${uploadPath}/${zipFileName}`, // 上传到目标服务器的路径
             {},
             (_err) => {
@@ -247,27 +262,27 @@ function uploadFile() {
   })
 }
 
-function deploy(sshClient) {
+function deploy(sshClient: ssh.Client) {
   return new Promise((resolve) => {
     deploySpinner.text = "文件上传成功！"
     const testUnzip = ora("测试是否有unzip命令")
     testUnzip.start()
-    sshClient.exec("unzip -v", (err, stream) => {
+    sshClient.exec("unzip -v", (err: Error | undefined, stream: any) => {
       if (err) throw err
       stream
-        .on("close", (code, signal) => {})
-        .on("data", (data) => {
+        .on("close", (code: number, signal: string) => {})
+        .on("data", (data: Buffer) => {
           testUnzip.succeed("服务器有unzip命令，开始部署!")
           testUnzip.stop()
         })
-        .stderr.on("data", (data) => {
+        .stderr.on("data", (data: Buffer) => {
           if (data.indexOf("unzip: command not found")) {
             testUnzip.fail("服务器没有unzip命令，请安装unzip命令！")
             process.exit(1)
           }
         })
     })
-    sshClient.shell((err, stream) => {
+    sshClient.shell((err: Error | undefined, stream: any) => {
       stream
         // 执行命令，删除上一个备份，对当前的备份，解压最新代码
         .end(
@@ -280,7 +295,7 @@ function deploy(sshClient) {
           exit
           `
         )
-        .on("data", (data) => {})
+        .on("data", (data: Buffer) => {})
         .on("close", () => {
           sshClient.end()
           let end = new Date().getTime()
@@ -291,7 +306,7 @@ function deploy(sshClient) {
   })
 }
 
-function deleteDir(url) {
+function deleteDir(url: string) {
   var files = [] as string[]
   if (fs.existsSync(url)) {
     //判断给定的路径是否存在
