@@ -9,8 +9,8 @@
 /*
  * @Author: jack
  * @Date: 2024-01-23 10:10
- * @LastEditors: jack
- * @LastEditTime: 2025-06-16 17:25
+ * @LastEditors: jacksixth
+ * @LastEditTime: 2026-04-16 19:42
  * @Description: 自动化部署前端文件至服务器
  */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -77,10 +77,10 @@ var rl = readLine.createInterface({
     output: process.stdout,
 });
 var server, uploadPath, zipSource, zipFileName, fileName, delFile; //服务器信息
-var checkPath1 = (0, ora_1.default)("\u6B63\u5728\u68C0\u67E5\u662F\u5426\u5B58\u5728".concat(zipSource, "\u6587\u4EF6\u5939"));
-var checkPath2 = (0, ora_1.default)("\u6B63\u5728\u68C0\u67E5\u662F\u5426\u5B58\u5728".concat(zipFileName, "\u538B\u7F29\u5305"));
-var pkg = (0, ora_1.default)("正在对文件进行压缩");
-var deploySpinner = (0, ora_1.default)("部署开始");
+var checkPath1;
+var checkPath2;
+var pkg;
+var deploySpinner;
 var sshClient = new ssh.Client();
 var start = new Date().getTime();
 var args = process.argv.splice(2);
@@ -104,6 +104,11 @@ var init = function () { return __awaiter(void 0, void 0, void 0, function () {
                         zipFileName = serverInfo[index].zipFileName;
                         fileName = serverInfo[index].fileName;
                         delFile = serverInfo[index].delFile;
+                        // 初始化 spinner 实例
+                        checkPath1 = (0, ora_1.default)("\u6B63\u5728\u68C0\u67E5\u662F\u5426\u5B58\u5728".concat(zipSource, "\u6587\u4EF6\u5939"));
+                        checkPath2 = (0, ora_1.default)("\u6B63\u5728\u68C0\u67E5\u662F\u5426\u5B58\u5728".concat(zipFileName, "\u538B\u7F29\u5305"));
+                        pkg = (0, ora_1.default)("正在对文件进行压缩");
+                        deploySpinner = (0, ora_1.default)("部署开始");
                         console.log("当前连接的服务器IP是：" + server.host);
                         main();
                     }
@@ -151,6 +156,12 @@ function selectServerInfo() {
             zipSource = serverInfo[index - 1].zipSource;
             zipFileName = serverInfo[index - 1].zipFileName;
             fileName = serverInfo[index - 1].fileName;
+            delFile = serverInfo[index - 1].delFile;
+            // 初始化 spinner 实例
+            checkPath1 = (0, ora_1.default)("\u6B63\u5728\u68C0\u67E5\u662F\u5426\u5B58\u5728".concat(zipSource, "\u6587\u4EF6\u5939"));
+            checkPath2 = (0, ora_1.default)("\u6B63\u5728\u68C0\u67E5\u662F\u5426\u5B58\u5728".concat(zipFileName, "\u538B\u7F29\u5305"));
+            pkg = (0, ora_1.default)("正在对文件进行压缩");
+            deploySpinner = (0, ora_1.default)("部署开始");
             console.log("当前连接的服务器IP是：" + server.host);
             main();
         }
@@ -192,7 +203,7 @@ function main() {
                     _a.label = 7;
                 case 7:
                     if (hasFile && delFile) {
-                        deleteDir(zipSource);
+                        deleteDir(zipSource.toString());
                     }
                     if ((hasFile || hasZip) && delFile)
                         fs.unlinkSync(zipFileName);
@@ -250,7 +261,7 @@ function compressFiles() {
                 ignoreBase: true, //压缩包内不需要再包一层
             });
         };
-        zipFile(zipSource, zipFileName).then(function () { return __awaiter(_this, void 0, void 0, function () {
+        zipFile(zipSource.toString(), zipFileName.toString()).then(function () { return __awaiter(_this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 pkg.succeed("生成压缩文件成功");
                 return [2 /*return*/, resolve(true)];
@@ -265,7 +276,7 @@ function uploadFile() {
             .on("ready", function () {
             deploySpinner.text = "服务器已连接,正在上传文件......";
             sshClient.sftp(function (err, sftp) {
-                sftp.fastPut(zipFileName, // 本地文件路径
+                sftp.fastPut(zipFileName.toString(), // 本地文件路径
                 "".concat(uploadPath, "/").concat(zipFileName), // 上传到目标服务器的路径
                 {}, function (_err) {
                     resolve(deploy(sshClient));
@@ -300,11 +311,17 @@ function deploy(sshClient) {
             });
         });
         sshClient.shell(function (err, stream) {
-            stream
-                // 执行命令，删除上一个备份，对当前的备份，解压最新代码
-                .end("\n          cd ".concat(uploadPath, "\n          rm -rf ").concat(fileName, "_bak\n          mv -f ").concat(fileName, " ").concat(fileName, "_bak\n          unzip ").concat(zipFileName, " -d ./").concat(fileName, "\n          rm -f ").concat(zipFileName, "\n          exit\n          "))
-                .on("data", function (data) { })
-                .on("close", function () {
+            stream.write("cd ".concat(uploadPath, "\n"));
+            stream.write("rm -rf ".concat(fileName, "_bak\n"));
+            stream.write("mv -f ".concat(fileName, " ").concat(fileName, "_bak\n"));
+            stream.write("unzip ".concat(zipFileName, " -d ./").concat(fileName, "\n"));
+            stream.write("rm -f ".concat(zipFileName, "\n"));
+            stream.write("exit\n");
+            var start = new Date().getTime();
+            stream.on("data", function (data) {
+                deploySpinner.text = data.toString();
+            });
+            stream.on("close", function () {
                 sshClient.end();
                 var end = new Date().getTime();
                 deploySpinner.succeed("\u90E8\u7F72\u5B8C\u6210\uFF0C\u8017\u65F6".concat(end - start, "ms"));
@@ -3733,6 +3750,79 @@ const path = __nccwpck_require__(6928);
 const mkdirp = __nccwpck_require__(4469);
 const pump = __nccwpck_require__(7898);
 
+/**
+ * Check if childPath is within parentPath (prevents path traversal attacks)
+ * @param {string} childPath - The path to check
+ * @param {string} parentPath - The parent directory path
+ * @returns {boolean} - True if childPath is within parentPath
+ */
+function isPathWithinParent(childPath, parentPath) {
+  const normalizedChild = path.resolve(childPath);
+  const normalizedParent = path.resolve(parentPath);
+  const parentWithSep = normalizedParent.endsWith(path.sep)
+    ? normalizedParent
+    : normalizedParent + path.sep;
+  return normalizedChild === normalizedParent ||
+         normalizedChild.startsWith(parentWithSep);
+}
+
+/**
+ * Check if the real filesystem path stays within parentDir,
+ * accounting for pre-existing symlinks on disk.
+ * Walks each path segment from parentDir to targetPath using lstat.
+ * If any segment is a symlink, resolves it and verifies it stays within parentDir.
+ * @param {string} targetPath - Absolute path to validate
+ * @param {string} parentDir - Absolute path of the extraction root
+ * @param {string} realParentDir - Pre-resolved real path of parentDir (handles OS-level symlinks like /var -> /private/var on macOS)
+ * @param {function} callback - callback(err, safe)
+ */
+function isRealPathSafe(targetPath, parentDir, realParentDir, callback) {
+  function isWithinParent(p) {
+    return isPathWithinParent(p, parentDir) || isPathWithinParent(p, realParentDir);
+  }
+
+  var relative = path.relative(parentDir, targetPath);
+  var segments = relative.split(path.sep);
+  var i = 0;
+  var current = parentDir;
+
+  function checkNext() {
+    if (i >= segments.length) return callback(null, true);
+    var segment = segments[i++];
+    if (!segment || segment === '.') return checkNext();
+
+    current = path.join(current, segment);
+    fs.lstat(current, function(err, stat) {
+      if (err) {
+        if (err.code === 'ENOENT') return callback(null, true); // doesn't exist yet, safe
+        // Fail closed: unexpected filesystem errors are unsafe
+        return callback(null, false);
+      }
+      if (!stat.isSymbolicLink()) return checkNext();
+
+      fs.realpath(current, function(err, resolved) {
+        if (err) {
+          if (err.code === 'ENOENT') {
+            // Dangling symlink - check textual target
+            return fs.readlink(current, function(err, linkTarget) {
+              if (err) return callback(null, false);
+              var absTarget = path.resolve(path.dirname(current), linkTarget);
+              callback(null, isWithinParent(absTarget));
+            });
+          }
+          // Fail closed: unexpected errors during symlink resolution are unsafe
+          return callback(null, false);
+        }
+        if (!isWithinParent(resolved)) return callback(null, false);
+        current = resolved;
+        checkNext();
+      });
+    });
+  }
+
+  checkNext();
+}
+
 // file/fileBuffer/stream
 exports.sourceType = source => {
   if (!source) return undefined;
@@ -3821,52 +3911,102 @@ exports.makeUncompressFn = StreamClass => {
       mkdirp(destDir, err => {
         if (err) return reject(err);
 
-        let entryCount = 0;
-        let successCount = 0;
-        let isFinish = false;
-        function done() {
-          // resolve when both stream finish and file write finish
-          if (isFinish && entryCount === successCount) resolve();
-        }
+        // Resolve destDir to absolute path for security validation
+        const resolvedDestDir = path.resolve(destDir);
 
-        new StreamClass(opts)
-          .on('finish', () => {
-            isFinish = true;
-            done();
-          })
-          .on('error', reject)
-          .on('entry', (header, stream, next) => {
-            stream.on('end', next);
+        // Resolve once for the entire extraction to handle OS-level symlinks
+        // (e.g. /var -> /private/var on macOS)
+        let realDestDir = resolvedDestDir;
+        fs.realpath(resolvedDestDir, (err, resolved) => {
+          if (!err) realDestDir = resolved;
 
-            if (header.type === 'file') {
-              const fullpath = path.join(destDir, header.name);
-              mkdirp(path.dirname(fullpath), err => {
-                if (err) return reject(err);
+          let entryCount = 0;
+          let successCount = 0;
+          let isFinish = false;
+          function done() {
+            // resolve when both stream finish and file write finish
+            if (isFinish && entryCount === successCount) resolve();
+          }
 
-                entryCount++;
-                pump(stream, fs.createWriteStream(fullpath, { mode: opts.mode || header.mode }), err => {
-                  if (err) return reject(err);
-                  successCount++;
-                  done();
-                });
-              });
-            } else if (header.type === 'symlink') {
-              // symlink
-              const src = path.join(destDir, header.name);
-              const target = path.resolve(path.dirname(src), header.linkname);
-              entryCount++;
-              fs.symlink(target, src, err => {
-                if (err) return reject(err);
-                successCount++;
+          new StreamClass(opts)
+            .on('finish', () => {
+              isFinish = true;
+              done();
+            })
+            .on('error', reject)
+            .on('entry', (header, stream, next) => {
+              stream.on('end', next);
+              const destFilePath = path.join(resolvedDestDir, header.name);
+              const resolvedDestPath = path.resolve(destFilePath);
+
+              // Security: Validate that the entry path doesn't escape the destination directory
+              if (!isPathWithinParent(resolvedDestPath, resolvedDestDir)) {
+                console.warn('[compressing] Skipping entry with path traversal: "' + header.name + '" -> "' + resolvedDestPath + '"');
                 stream.resume();
+                return;
+              }
+
+              // Security: Validate no pre-existing symlink in the path escapes the extraction directory
+              isRealPathSafe(resolvedDestPath, resolvedDestDir, realDestDir, (err, safe) => {
+                if (err || !safe) {
+                  console.warn('[compressing] Skipping entry "' + header.name + '": a symlink in its path resolves outside the extraction directory');
+                  stream.resume();
+                  return;
+                }
+
+                if (header.type === 'file') {
+                  const dir = path.dirname(destFilePath);
+                  mkdirp(dir, err => {
+                    if (err) return reject(err);
+
+                    entryCount++;
+                    pump(stream, fs.createWriteStream(destFilePath, { mode: opts.mode || header.mode }), err => {
+                      if (err) return reject(err);
+                      successCount++;
+                      done();
+                    });
+                  });
+                } else if (header.type === 'symlink') {
+                  const dir = path.dirname(destFilePath);
+                  const target = path.resolve(dir, header.linkname);
+
+                  // Security: Validate that the symlink target doesn't escape the destination directory
+                  if (!isPathWithinParent(target, resolvedDestDir)) {
+                    console.warn('[compressing] Skipping symlink "' + header.name + '": target "' + target + '" escapes extraction directory');
+                    stream.resume();
+                    return;
+                  }
+
+                  // Security: Validate no pre-existing symlink in the target path escapes the extraction directory
+                  isRealPathSafe(target, resolvedDestDir, realDestDir, (err, targetSafe) => {
+                    if (err || !targetSafe) {
+                      console.warn('[compressing] Skipping symlink "' + header.name + '": target resolves outside extraction directory via existing symlink');
+                      stream.resume();
+                      return;
+                    }
+
+                    entryCount++;
+
+                    mkdirp(dir, err => {
+                      if (err) return reject(err);
+
+                      const relativeTarget = path.relative(dir, target);
+                      fs.symlink(relativeTarget, destFilePath, err => {
+                        if (err) return reject(err);
+                        successCount++;
+                        stream.resume();
+                      });
+                    });
+                  });
+                } else { // directory
+                  mkdirp(destFilePath, err => {
+                    if (err) return reject(err);
+                    stream.resume();
+                  });
+                }
               });
-            } else { // directory
-              mkdirp(path.join(destDir, header.name), err => {
-                if (err) return reject(err);
-                stream.resume();
-              });
-            }
-          });
+            });
+        });
       });
     });
   };
@@ -3896,7 +4036,14 @@ function safePipe(streams) {
 
 exports.safePipe = safePipe;
 
-exports.stripFileName = (strip, fileName, type) => {
+function normalizePath(fileName) {
+  fileName = path.normalize(fileName);
+  // https://nodejs.org/api/path.html#path_path_normalize_path
+  if (process.platform === 'win32') fileName = fileName.replace(/\\+/g, '/');
+  return fileName;
+}
+
+function stripFileName(strip, fileName, type) {
   // before
   // node/package.json
   // node/lib/index.js
@@ -3917,15 +4064,18 @@ exports.stripFileName = (strip, fileName, type) => {
   // /foo => foo
   if (fileName[0] === '/') fileName = fileName.replace(/^\/+/, '');
 
+  // fix case
+  // ./foo/bar => foo/bar
+  if (fileName) {
+    fileName = normalizePath(fileName);
+  }
+
   let s = fileName.split('/');
 
   // fix relative path
   // foo/../bar/../../asdf/
   //  => asdf/
   if (s.indexOf('..') !== -1) {
-    fileName = path.normalize(fileName);
-    // https://npm.taobao.org/mirrors/node/latest/docs/api/path.html#path_path_normalize_path
-    if (process.platform === 'win32') fileName = fileName.replace(/\\+/g, '/');
     // replace '../' on ../../foo/bar
     fileName = fileName.replace(/(\.\.\/)+/, '');
     if (type === 'directory' && fileName && fileName[fileName.length - 1] !== '/') {
@@ -3936,7 +4086,9 @@ exports.stripFileName = (strip, fileName, type) => {
 
   strip = Math.min(strip, s.length - 1);
   return s.slice(strip).join('/') || '/';
-};
+}
+
+exports.stripFileName = stripFileName;
 
 
 /***/ }),
@@ -4179,8 +4331,8 @@ class ZipUncompressStream extends UncompressBaseStream {
             entry.fileName = iconv.decode(entry.fileName, this._zipFileNameEncoding);
           }
         }
-        // directory file names end with '/'
-        const type = /\/$/.test(entry.fileName) ? 'directory' : 'file';
+        // directory file names end with '/' (for Linux and macOS) or '\' (for Windows)
+        const type = /[\\\/]$/.test(entry.fileName) ? 'directory' : 'file';
         const name = entry.fileName = this[STRIP_NAME](entry.fileName, type);
 
         const header = { name, type, yauzl: entry, mode };

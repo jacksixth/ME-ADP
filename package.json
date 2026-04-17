@@ -4,7 +4,6 @@
   "description": "将前端文件部署到服务器",
   "main": "deploy.js",
   "scripts": {
-    "start": "node deploy.js",
     "build": "tsc deploy.ts --outDir dist_tmp && ncc build dist_tmp/deploy.js -o out "
   },
   "author": "",

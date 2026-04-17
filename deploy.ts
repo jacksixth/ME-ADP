@@ -71,7 +71,12 @@ let rl = readLine.createInterface({
   input: process.stdin,
   output: process.stdout,
 })
-let server: ssh.ConnectConfig, uploadPath: string, zipSource: fs.PathLike, zipFileName: fs.PathLike, fileName: string, delFile: boolean //服务器信息
+let server: ssh.ConnectConfig,
+  uploadPath: string,
+  zipSource: fs.PathLike,
+  zipFileName: fs.PathLike,
+  fileName: string,
+  delFile: boolean //服务器信息
 let checkPath1: ReturnType<typeof ora>
 let checkPath2: ReturnType<typeof ora>
 let pkg: ReturnType<typeof ora>
@@ -101,7 +106,6 @@ const init = async () => {
       checkPath2 = ora(`正在检查是否存在${zipFileName}压缩包`)
       pkg = ora("正在对文件进行压缩")
       deploySpinner = ora("部署开始")
-      
       console.log("当前连接的服务器IP是：" + server.host)
       main()
     } else {
@@ -267,7 +271,7 @@ function deploy(sshClient: ssh.Client) {
     deploySpinner.text = "文件上传成功！"
     const testUnzip = ora("测试是否有unzip命令")
     testUnzip.start()
-    sshClient.exec("unzip -v", (err: Error | undefined, stream: any) => {
+    sshClient.exec("unzip -v", (err: Error | undefined, stream) => {
       if (err) throw err
       stream
         .on("close", (code: number, signal: string) => {})
@@ -282,26 +286,23 @@ function deploy(sshClient: ssh.Client) {
           }
         })
     })
-    sshClient.shell((err: Error | undefined, stream: any) => {
-      stream
-        // 执行命令，删除上一个备份，对当前的备份，解压最新代码
-        .end(
-          `
-          cd ${uploadPath}
-          rm -rf ${fileName}_bak
-          mv -f ${fileName} ${fileName}_bak
-          unzip ${zipFileName} -d ./${fileName}
-          rm -f ${zipFileName}
-          exit
-          `
-        )
-        .on("data", (data: Buffer) => {})
-        .on("close", () => {
-          sshClient.end()
-          let end = new Date().getTime()
-          deploySpinner.succeed(`部署完成，耗时${end - start}ms`)
-          resolve(true)
-        })
+    sshClient.shell((err: Error | undefined, stream) => {
+      stream.write(`cd ${uploadPath}\n`)
+      stream.write(`rm -rf ${fileName}_bak\n`)
+      stream.write(`mv -f ${fileName} ${fileName}_bak\n`)
+      stream.write(`unzip ${zipFileName} -d ./${fileName}\n`)
+      stream.write(`rm -f ${zipFileName}\n`)
+      stream.write(`exit\n`)
+      let start = new Date().getTime()
+      stream.on("data", (data: Buffer) => {
+        deploySpinner.text = data.toString()
+      })
+      stream.on("close", () => {
+        sshClient.end()
+        let end = new Date().getTime()
+        deploySpinner.succeed(`部署完成，耗时${end - start}ms`)
+        resolve(true)
+      })
     })
   })
 }
